@@ -1,0 +1,4 @@
+Spec-Driven Execution: Before writing or modifying any code, you MUST always read and strictly adhere to `specs/mission.md`, `specs/roadmap.md`, and `specs/tech-stack.md`.
+Changelog Maintenance: You MUST document every significant change, bug fix, or feature addition in the `changelog.md` file located in the root directory immediately after making the change.
+Git Workflow: Whenever a new feature is to be added, you must first create and checkout a new feature branch. Test the code locally. You MUST ask for the user's explicit approval before proceeding further. Once approved, merge the branch locally, delete the feature branch, and finally push to GitHub.
+Environment Variables: Never hardcode API keys. Always use `os.getenv()` and read from the `.env` file.
