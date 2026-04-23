@@ -1,11 +1,16 @@
 import json
+import logging
 import os
 import re
 from typing import Any
 
 import anthropic
 
-DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+logger = logging.getLogger(__name__)
+
+# Default model: `claude-3-5-sonnet-20241022` often returns HTTP 400 (retired/unsupported on many keys).
+# Override with ANTHROPIC_MODEL; Sonnet 4.5 matches current Anthropic API docs.
+DEFAULT_MODEL = "claude-sonnet-4-5"
 PLACEHOLDER_KEYS = frozenset({"", "your_anthropic_key_here"})
 
 
@@ -30,14 +35,37 @@ def _extract_json_object(text: str) -> dict[str, Any]:
     return data
 
 
+def _api_error_detail(exc: anthropic.APIError) -> str:
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        err = body.get("error")
+        if isinstance(err, dict) and err.get("message"):
+            return str(err["message"])
+    return str(exc)
+
+
 def _call_claude(client: anthropic.Anthropic, system: str, user: str) -> str:
     model = os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL)
-    msg = client.messages.create(
-        model=model,
-        max_tokens=2048,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
+    try:
+        msg = client.messages.create(
+            model=model,
+            max_tokens=2048,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+    except anthropic.BadRequestError as exc:
+        detail = _api_error_detail(exc)
+        logger.warning("Anthropic BadRequest (model=%s): %s", model, detail)
+        raise AnthropicPipelineError(
+            "Anthropic rejected the request. If this mentions an invalid model, set "
+            "ANTHROPIC_MODEL in `.env` to a model your account supports "
+            "(e.g. claude-sonnet-4-5). "
+            f"Detail: {detail}"
+        ) from exc
+    except anthropic.APIError as exc:
+        detail = _api_error_detail(exc)
+        logger.warning("Anthropic API error (model=%s): %s", model, detail)
+        raise AnthropicPipelineError(f"Anthropic request failed: {detail}") from exc
     parts: list[str] = []
     for block in msg.content:
         text = getattr(block, "text", None)
