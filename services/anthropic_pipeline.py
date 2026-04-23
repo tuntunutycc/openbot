@@ -53,7 +53,12 @@ def _api_error_detail(exc: anthropic.APIError) -> str:
 
 
 def _should_use_anthropic_mock(exc: BaseException, detail: str) -> bool:
-    """True for low-credit / billing-style Anthropic failures so local E2E tests can proceed."""
+    """
+    Use mock output for credit/billing failures, or broadly for non–BadRequest API errors
+    (rate limits, overload, etc.) so E2E Telegram routing works without a healthy Anthropic account.
+
+    Still surfaces likely **invalid API key** and **invalid model** BadRequests (no credit keywords).
+    """
     d = detail.lower()
     credit_markers = (
         "credit balance",
@@ -69,18 +74,22 @@ def _should_use_anthropic_mock(exc: BaseException, detail: str) -> bool:
     )
     if any(m in d for m in credit_markers):
         return True
+    if isinstance(exc, anthropic.BadRequestError):
+        # Keep real 400s visible when they look like model/parameter issues, not billing.
+        return any(m in d for m in credit_markers)
+    if isinstance(exc, anthropic.AuthenticationError):
+        if "invalid" in d and "key" in d:
+            return False
+        return True
     if isinstance(exc, anthropic.APIStatusError):
         if exc.status_code == 402:
             return True
-        if exc.status_code in (401, 403):
-            if "invalid" in d and "api" in d and "key" in d:
+        if exc.status_code == 403:
+            if "invalid" in d and "key" in d:
                 return False
-            if any(
-                k in d
-                for k in ("credit", "billing", "balance", "payment", "quota", "plan", "subscribe")
-            ):
-                return True
-    # Any other API error (e.g. invalid model): do not mock; surface to caller.
+            return True
+    if isinstance(exc, anthropic.APIError):
+        return True
     return False
 
 
