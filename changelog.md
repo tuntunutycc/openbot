@@ -15,3 +15,4 @@
 - Updated `ANTHROPIC_API_KEY` in `.env` (replaced placeholder; value not logged here).
 - Updated `PHOTOROOM_API_KEY` in `.env` (replaced placeholder; value not logged here).
 - Fixed OpenClaw import path: alias `cmdop.exceptions.TimeoutError` to `ConnectionTimeoutError` before loading `openclaw`, and added explicit `tenacity` dependency for CMDOP generated clients.
+- Merged `feature/phase2-openclaw-specs` into `main` (Phase 2 approved) and deleted the feature branch locally.
