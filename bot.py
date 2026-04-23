@@ -1,13 +1,16 @@
 import io
+import logging
 import os
 from pathlib import PurePosixPath
 
 import telebot
 from dotenv import load_dotenv
 
+from services.anthropic_pipeline import AnthropicPipelineError
 from services.openclaw_agent import run_openclaw_agent
 from services.openclaw_runtime import init_openclaw
 from services.photoroom_client import PhotoroomError, remove_background
+from services.pipeline_orchestrator import run_ad_pipeline
 
 
 load_dotenv()
@@ -23,6 +26,7 @@ bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 OPENCLAW_HANDLE = init_openclaw()
 
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
+TELEGRAM_CAPTION_MAX = 1024
 
 
 def _is_image_document(message: telebot.types.Message) -> bool:
@@ -41,6 +45,46 @@ def _download_telegram_file(file_id: str) -> tuple[bytes, str]:
         raw = bytes(raw)
     name = PurePosixPath(info.file_path).name or "image.jpg"
     return raw, name
+
+
+def _reply_pipeline_result(
+    message: telebot.types.Message, image_bytes: bytes, marketing_copy: str
+) -> None:
+    """Send final (or fallback) image plus marketing copy per Telegram limits."""
+    buf = io.BytesIO(image_bytes)
+    buf.name = "ad_result.png"
+    buf.seek(0)
+    if len(marketing_copy) <= TELEGRAM_CAPTION_MAX:
+        try:
+            bot.send_photo(
+                message.chat.id,
+                buf,
+                caption=marketing_copy,
+                reply_to_message_id=message.message_id,
+            )
+        except Exception:
+            buf.seek(0)
+            bot.send_document(
+                message.chat.id,
+                buf,
+                caption=marketing_copy,
+                reply_to_message_id=message.message_id,
+            )
+    else:
+        try:
+            bot.send_photo(
+                message.chat.id,
+                buf,
+                reply_to_message_id=message.message_id,
+            )
+        except Exception:
+            buf.seek(0)
+            bot.send_document(
+                message.chat.id,
+                buf,
+                reply_to_message_id=message.message_id,
+            )
+        bot.reply_to(message, marketing_copy)
 
 
 def _process_and_reply_image(
@@ -82,7 +126,8 @@ def handle_start(message: telebot.types.Message) -> None:
         message,
         (
             "Bot is online. Send any text message and I will echo it back.\n"
-            "Send a product photo (or an image file) to remove its background via Photoroom.\n"
+            "Send a product photo (or image file) without a caption to remove background only.\n"
+            "Send a photo with a caption (e.g. beach ad background) to run the full AI ad pipeline.\n"
             "Use /agent <message> or prefix with 'agent:' to route through OpenClaw.\n"
             f"OpenClaw status: {openclaw_status}"
         ),
@@ -103,6 +148,7 @@ def handle_agent_command(message: telebot.types.Message) -> None:
 
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message: telebot.types.Message) -> None:
+    # Caption present → full pipeline (segment + Claude + v2/edit). No caption → Phase 3 cut-out only.
     photos = message.photo
     if not photos:
         bot.reply_to(message, "No photo found in this message.")
@@ -116,6 +162,32 @@ def handle_photo(message: telebot.types.Message) -> None:
     except Exception:
         bot.reply_to(message, "Could not download this photo from Telegram.")
         return
+    if len(data) > MAX_IMAGE_BYTES:
+        bot.reply_to(
+            message,
+            f"Image is too large. Please send a file under {MAX_IMAGE_BYTES // (1024 * 1024)} MB.",
+        )
+        return
+
+    caption = (message.caption or "").strip()
+    if caption:
+        try:
+            final_bytes, marketing = run_ad_pipeline(data, name, caption)
+        except AnthropicPipelineError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while running the ad pipeline. Please try again.",
+            )
+            return
+        _reply_pipeline_result(message, final_bytes, marketing)
+        return
+
     _process_and_reply_image(message, data, name)
 
 
@@ -133,6 +205,32 @@ def handle_image_document(message: telebot.types.Message) -> None:
         bot.reply_to(message, "Could not download this file from Telegram.")
         return
     filename = doc.file_name or path_name
+    if len(data) > MAX_IMAGE_BYTES:
+        bot.reply_to(
+            message,
+            f"Image is too large. Please send a file under {MAX_IMAGE_BYTES // (1024 * 1024)} MB.",
+        )
+        return
+
+    caption = (message.caption or "").strip()
+    if caption:
+        try:
+            final_bytes, marketing = run_ad_pipeline(data, filename, caption)
+        except AnthropicPipelineError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while running the ad pipeline. Please try again.",
+            )
+            return
+        _reply_pipeline_result(message, final_bytes, marketing)
+        return
+
     _process_and_reply_image(message, data, filename)
 
 
@@ -157,4 +255,8 @@ def handle_echo(message: telebot.types.Message) -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
     bot.infinity_polling()
