@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "claude-sonnet-4-5"
 PLACEHOLDER_KEYS = frozenset({"", "your_anthropic_key_here"})
 
+MOCK_PHOTOROOM_PROMPT = (
+    "a beautiful sandy beach with ocean waves, sunny day, professional product photography"
+)
+MOCK_MARKETING_COPY = (
+    "🏖️ [MOCK GENERATED TEXT] Experience the ultimate relaxation! This is a test marketing "
+    "copy since the Anthropic API is out of credits. Grab yours today! #SummerVibes"
+)
+
 
 class AnthropicPipelineError(Exception):
     """Raised when caption parsing via Claude fails."""
@@ -44,28 +52,51 @@ def _api_error_detail(exc: anthropic.APIError) -> str:
     return str(exc)
 
 
+def _should_use_anthropic_mock(exc: BaseException, detail: str) -> bool:
+    """True for low-credit / billing-style Anthropic failures so local E2E tests can proceed."""
+    d = detail.lower()
+    credit_markers = (
+        "credit balance",
+        "too low to access",
+        "insufficient credits",
+        "insufficient balance",
+        "out of credits",
+        "billing",
+        "payment required",
+        "add credits",
+        "purchase credits",
+        "quota",
+    )
+    if any(m in d for m in credit_markers):
+        return True
+    if isinstance(exc, anthropic.APIStatusError):
+        if exc.status_code == 402:
+            return True
+        if exc.status_code in (401, 403):
+            if "invalid" in d and "api" in d and "key" in d:
+                return False
+            if any(
+                k in d
+                for k in ("credit", "billing", "balance", "payment", "quota", "plan", "subscribe")
+            ):
+                return True
+    # Any other API error (e.g. invalid model): do not mock; surface to caller.
+    return False
+
+
+def _mock_parse_result() -> tuple[str, str]:
+    logger.warning("Anthropic API credit low, using mock response.")
+    return MOCK_PHOTOROOM_PROMPT, MOCK_MARKETING_COPY
+
+
 def _call_claude(client: anthropic.Anthropic, system: str, user: str) -> str:
     model = os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL)
-    try:
-        msg = client.messages.create(
-            model=model,
-            max_tokens=2048,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
-    except anthropic.BadRequestError as exc:
-        detail = _api_error_detail(exc)
-        logger.warning("Anthropic BadRequest (model=%s): %s", model, detail)
-        raise AnthropicPipelineError(
-            "Anthropic rejected the request. If this mentions an invalid model, set "
-            "ANTHROPIC_MODEL in `.env` to a model your account supports "
-            "(e.g. claude-sonnet-4-5). "
-            f"Detail: {detail}"
-        ) from exc
-    except anthropic.APIError as exc:
-        detail = _api_error_detail(exc)
-        logger.warning("Anthropic API error (model=%s): %s", model, detail)
-        raise AnthropicPipelineError(f"Anthropic request failed: {detail}") from exc
+    msg = client.messages.create(
+        model=model,
+        max_tokens=2048,
+        system=system,
+        messages=[{"role": "user", "content": user}],
+    )
     parts: list[str] = []
     for block in msg.content:
         text = getattr(block, "text", None)
@@ -78,7 +109,8 @@ def parse_caption(user_caption: str) -> tuple[str, str]:
     """
     Parse user caption into (photoroom_background_prompt, marketing_copy).
 
-    Returns two non-empty strings or raises AnthropicPipelineError.
+    On Anthropic billing/credit or other API failures during the Messages call, returns a
+    fixed mock pair so Telegram routing can be tested without credits.
     """
     caption = (user_caption or "").strip()
     if not caption:
@@ -99,7 +131,15 @@ def parse_caption(user_caption: str) -> tuple[str, str]:
     user = f"User instruction for the product photo ad:\n{caption}"
 
     client = anthropic.Anthropic(api_key=key)
-    raw = _call_claude(client, system, user)
+
+    try:
+        raw = _call_claude(client, system, user)
+    except anthropic.APIError as exc:
+        detail = _api_error_detail(exc)
+        if _should_use_anthropic_mock(exc, detail):
+            return _mock_parse_result()
+        logger.warning("Anthropic API error (model=%s): %s", os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL), detail)
+        raise AnthropicPipelineError(f"Anthropic request failed: {detail}") from exc
 
     try:
         data = _extract_json_object(raw)
@@ -109,7 +149,18 @@ def parse_caption(user_caption: str) -> tuple[str, str]:
             "Output ONLY one JSON object with keys photoroom_background_prompt and marketing_copy (strings). No markdown."
             f"\nOriginal instruction:\n{caption}"
         )
-        raw = _call_claude(client, system, fix_user)
+        try:
+            raw = _call_claude(client, system, fix_user)
+        except anthropic.APIError as exc:
+            detail = _api_error_detail(exc)
+            if _should_use_anthropic_mock(exc, detail):
+                return _mock_parse_result()
+            logger.warning(
+                "Anthropic API error on JSON retry (model=%s): %s",
+                os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL),
+                detail,
+            )
+            raise AnthropicPipelineError(f"Anthropic request failed: {detail}") from exc
         data = _extract_json_object(raw)
 
     bg = data.get("photoroom_background_prompt")
