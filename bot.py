@@ -7,6 +7,7 @@ import telebot
 from dotenv import load_dotenv
 
 from services.anthropic_pipeline import AnthropicPipelineError
+from services.catalog_pipeline import run_catalog_pipeline
 from services.openclaw_agent import run_openclaw_agent
 from services.openclaw_runtime import init_openclaw
 from services.photoroom_client import PhotoroomError, remove_background
@@ -47,19 +48,28 @@ def _download_telegram_file(file_id: str) -> tuple[bytes, str]:
     return raw, name
 
 
-def _reply_pipeline_result(
-    message: telebot.types.Message, image_bytes: bytes, marketing_copy: str
+def _is_catalog_instruction(text: str) -> bool:
+    t = (text or "").strip().lower()
+    return t.startswith("/catalog") or t.startswith("catalog:")
+
+
+def _reply_image_with_optional_text(
+    message: telebot.types.Message,
+    image_bytes: bytes,
+    text: str | None = None,
+    output_name: str = "result.png",
 ) -> None:
-    """Send final (or fallback) image plus marketing copy per Telegram limits."""
+    """Send image with optional text, respecting Telegram caption limits."""
     buf = io.BytesIO(image_bytes)
-    buf.name = "ad_result.png"
+    buf.name = output_name
     buf.seek(0)
-    if len(marketing_copy) <= TELEGRAM_CAPTION_MAX:
+    payload_text = (text or "").strip()
+    if payload_text and len(payload_text) <= TELEGRAM_CAPTION_MAX:
         try:
             bot.send_photo(
                 message.chat.id,
                 buf,
-                caption=marketing_copy,
+                caption=payload_text,
                 reply_to_message_id=message.message_id,
             )
         except Exception:
@@ -67,7 +77,7 @@ def _reply_pipeline_result(
             bot.send_document(
                 message.chat.id,
                 buf,
-                caption=marketing_copy,
+                caption=payload_text,
                 reply_to_message_id=message.message_id,
             )
     else:
@@ -84,7 +94,8 @@ def _reply_pipeline_result(
                 buf,
                 reply_to_message_id=message.message_id,
             )
-        bot.reply_to(message, marketing_copy)
+        if payload_text:
+            bot.reply_to(message, payload_text)
 
 
 def _process_and_reply_image(
@@ -128,6 +139,7 @@ def handle_start(message: telebot.types.Message) -> None:
             "Bot is online. Send any text message and I will echo it back.\n"
             "Send a product photo (or image file) without a caption to remove background only.\n"
             "Send a photo with a caption (e.g. beach ad background) to run the full AI ad pipeline.\n"
+            "Use caption prefix '/catalog' or 'catalog:' for catalog layout generation.\n"
             "Use /agent <message> or prefix with 'agent:' to route through OpenClaw.\n"
             f"OpenClaw status: {openclaw_status}"
         ),
@@ -170,6 +182,33 @@ def handle_photo(message: telebot.types.Message) -> None:
         return
 
     caption = (message.caption or "").strip()
+    if caption and _is_catalog_instruction(caption):
+        catalog_instruction = caption
+        if caption.startswith("/catalog"):
+            catalog_instruction = caption.replace("/catalog", "", 1).strip()
+        elif caption.lower().startswith("catalog:"):
+            catalog_instruction = caption.split(":", 1)[1].strip()
+        if not catalog_instruction:
+            catalog_instruction = "Create a clean premium product catalog layout."
+        try:
+            final_bytes, copy = run_catalog_pipeline(data, name, catalog_instruction)
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while generating the catalog layout. Please try again.",
+            )
+            return
+        _reply_image_with_optional_text(
+            message,
+            final_bytes,
+            copy,
+            output_name="catalog_result.png",
+        )
+        return
+
     if caption:
         try:
             final_bytes, marketing = run_ad_pipeline(data, name, caption)
@@ -185,7 +224,12 @@ def handle_photo(message: telebot.types.Message) -> None:
                 "Something went wrong while running the ad pipeline. Please try again.",
             )
             return
-        _reply_pipeline_result(message, final_bytes, marketing)
+        _reply_image_with_optional_text(
+            message,
+            final_bytes,
+            marketing,
+            output_name="ad_result.png",
+        )
         return
 
     _process_and_reply_image(message, data, name)
@@ -213,6 +257,33 @@ def handle_image_document(message: telebot.types.Message) -> None:
         return
 
     caption = (message.caption or "").strip()
+    if caption and _is_catalog_instruction(caption):
+        catalog_instruction = caption
+        if caption.startswith("/catalog"):
+            catalog_instruction = caption.replace("/catalog", "", 1).strip()
+        elif caption.lower().startswith("catalog:"):
+            catalog_instruction = caption.split(":", 1)[1].strip()
+        if not catalog_instruction:
+            catalog_instruction = "Create a clean premium product catalog layout."
+        try:
+            final_bytes, copy = run_catalog_pipeline(data, filename, catalog_instruction)
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while generating the catalog layout. Please try again.",
+            )
+            return
+        _reply_image_with_optional_text(
+            message,
+            final_bytes,
+            copy,
+            output_name="catalog_result.png",
+        )
+        return
+
     if caption:
         try:
             final_bytes, marketing = run_ad_pipeline(data, filename, caption)
@@ -228,7 +299,12 @@ def handle_image_document(message: telebot.types.Message) -> None:
                 "Something went wrong while running the ad pipeline. Please try again.",
             )
             return
-        _reply_pipeline_result(message, final_bytes, marketing)
+        _reply_image_with_optional_text(
+            message,
+            final_bytes,
+            marketing,
+            output_name="ad_result.png",
+        )
         return
 
     _process_and_reply_image(message, data, filename)
