@@ -19,3 +19,4 @@
 - Opened `feature/phase3-photoroom-specs` and refreshed Feature-Based SDD specs under `specs/photoroom_api/` (`requirement.md`, `plan.md`, `validation.md`) for Photoroom Remove Background (`POST https://sdk.photoroom.com/v1/segment`); implementation deferred pending explicit spec approval.
 - Phase 3 implemented (on `feature/phase3-photoroom-specs`): added `services/photoroom_client.py` (`remove_background`, `PhotoroomError`, JSON/base64 or binary responses, optional `PHOTOROOM_SEGMENT_URL`); extended `bot.py` with photo and image-document handlers, Telegram download + size guard, Photoroom call, and `send_photo` with `send_document` fallback; `/start` text mentions background removal.
 - Updated `PHOTOROOM_API_KEY` in `.env` (value not logged here).
+- Merged `feature/phase3-photoroom-specs` into `main` after successful Telegram validation; deleted the feature branch locally.
