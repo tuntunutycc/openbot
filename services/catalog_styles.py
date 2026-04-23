@@ -56,6 +56,13 @@ CATALOG_STYLES: dict[str, CatalogStyle] = {
 }
 
 
+def get_catalog_style_by_name(style_name: str) -> CatalogStyle:
+    key = (style_name or "").strip().lower()
+    if key in CATALOG_STYLES:
+        return CATALOG_STYLES[key]
+    return CATALOG_STYLES["premium"]
+
+
 def select_catalog_style(user_instruction: str) -> CatalogStyle:
     text = (user_instruction or "").lower()
     if any(k in text for k in ("minimal", "clean", "simple", "plain")):

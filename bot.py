@@ -7,7 +7,7 @@ import telebot
 from dotenv import load_dotenv
 
 from services.anthropic_pipeline import AnthropicPipelineError
-from services.catalog_pipeline import run_catalog_pipeline
+from services.catalog_pipeline import run_catalog_batch_pipeline, run_catalog_pipeline
 from services.openclaw_agent import run_openclaw_agent
 from services.openclaw_runtime import init_openclaw
 from services.photoroom_client import PhotoroomError, remove_background
@@ -96,6 +96,56 @@ def _reply_image_with_optional_text(
             )
         if payload_text:
             bot.reply_to(message, payload_text)
+
+
+def _reply_catalog_album(
+    message: telebot.types.Message,
+    images: list[bytes],
+    marketing_copy: str | None,
+    *,
+    full_fallback: bool,
+    partial_fallback: bool,
+) -> None:
+    """
+    Send catalog results as album when possible.
+    - Full fallback: single cutout image.
+    - Partial fallback: album + note.
+    """
+    text = (marketing_copy or "").strip()
+    if full_fallback or len(images) < 2:
+        fallback_note = (
+            "Catalog variations fallback mode: quota/billing limits hit, returning a safe mock output."
+        )
+        joined = f"{fallback_note}\n\n{text}".strip() if text else fallback_note
+        _reply_image_with_optional_text(
+            message,
+            images[0],
+            joined,
+            output_name="catalog_fallback.png",
+        )
+        return
+
+    media: list[telebot.types.InputMediaPhoto] = []
+    buffers: list[io.BytesIO] = []
+    for idx, image in enumerate(images[:3], start=1):
+        buf = io.BytesIO(image)
+        buf.name = f"catalog_variation_{idx}.png"
+        buffers.append(buf)
+        media.append(telebot.types.InputMediaPhoto(buf))
+
+    # Caption can only go on the first media item in Telegram albums.
+    if text and len(text) <= TELEGRAM_CAPTION_MAX:
+        media[0].caption = text
+
+    bot.send_media_group(message.chat.id, media, reply_to_message_id=message.message_id)
+
+    if partial_fallback:
+        bot.reply_to(
+            message,
+            "Some variations used fallback output due to Photoroom quota/billing limits.",
+        )
+    if text and len(text) > TELEGRAM_CAPTION_MAX:
+        bot.reply_to(message, text)
 
 
 def _process_and_reply_image(
@@ -191,7 +241,7 @@ def handle_photo(message: telebot.types.Message) -> None:
         if not catalog_instruction:
             catalog_instruction = "Create a clean premium product catalog layout."
         try:
-            final_bytes, copy = run_catalog_pipeline(data, name, catalog_instruction)
+            batch = run_catalog_batch_pipeline(data, name, catalog_instruction)
         except PhotoroomError as exc:
             bot.reply_to(message, str(exc))
             return
@@ -201,11 +251,12 @@ def handle_photo(message: telebot.types.Message) -> None:
                 "Something went wrong while generating the catalog layout. Please try again.",
             )
             return
-        _reply_image_with_optional_text(
+        _reply_catalog_album(
             message,
-            final_bytes,
-            copy,
-            output_name="catalog_result.png",
+            batch.images,
+            batch.marketing_copy,
+            full_fallback=batch.full_fallback,
+            partial_fallback=batch.partial_fallback,
         )
         return
 
@@ -266,7 +317,7 @@ def handle_image_document(message: telebot.types.Message) -> None:
         if not catalog_instruction:
             catalog_instruction = "Create a clean premium product catalog layout."
         try:
-            final_bytes, copy = run_catalog_pipeline(data, filename, catalog_instruction)
+            batch = run_catalog_batch_pipeline(data, filename, catalog_instruction)
         except PhotoroomError as exc:
             bot.reply_to(message, str(exc))
             return
@@ -276,11 +327,12 @@ def handle_image_document(message: telebot.types.Message) -> None:
                 "Something went wrong while generating the catalog layout. Please try again.",
             )
             return
-        _reply_image_with_optional_text(
+        _reply_catalog_album(
             message,
-            final_bytes,
-            copy,
-            output_name="catalog_result.png",
+            batch.images,
+            batch.marketing_copy,
+            full_fallback=batch.full_fallback,
+            partial_fallback=batch.partial_fallback,
         )
         return
 
