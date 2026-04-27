@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-04-27 (catalog intent router + seeded batch diversity)
+- Added catalog intent routing in `services/anthropic_pipeline.py` (`parse_catalog_request_intent`) with JSON output (`action`, `count`, `base_prompt`) to detect natural-language batch requests in Burmese/English and clamp count to max 5.
+- Added `route_catalog_request` in `services/catalog_pipeline.py`; `/catalog ...` and `catalog: ...` now auto-switch to batch mode when routed action is `catalog_batch`.
+- Strengthened batch distinctness: `run_catalog_batch_n_pipeline` now applies fixed Photoroom seeds `[117879368, 55994449, 48672244, 65080068, 999999]` per iteration through `background.seed`.
+- Extended mapping layer (`services/dynamic_edit_mapping.py`) to accept integer `seed`/`background_seed` and map to `background.seed` safely.
+- Refined catalog batch creativity: router now returns `background_prompts` for batch mode, and `run_catalog_batch_n_pipeline` iterates those LLM-provided prompts directly (falling back to generated prompts only when missing). Batch captions can include the prompt description per variation.
+- Prompt quality uplift: `CATALOG_ROUTER_SYSTEM` now instructs Claude to generate high-end commercial photography prompts (cinematic studio lighting, bokeh, depth of field, photorealistic textures, 8k detail, color grading, camera-style details).
+- Blending hardening: mapping now enforces default `lighting.mode=ai.auto` and `shadow.mode=ai.soft` when omitted; catalog v2/edit payload path keeps the same baseline blending defaults.
+
+## 2026-04-27 (catalog batch N trigger)
+- Added `catalog batch N: <prompt>` caption trigger in `bot.py` (photo + image document paths), with hard cap `N <= 5`.
+- Implemented sequential batch generation in `services/catalog_pipeline.py` via `run_catalog_batch_n_pipeline`: reuses the same downloaded source image/cutout, appends `Variation X` to the instruction each loop, and returns images in order for sequential send-back.
+- Updated `services/photoroom_edit_client.py` `render_catalog_layout_with_fallback_flag(..., include_output_size=False)` path so catalog batch keeps original dimensions by omitting `outputSize`.
+- Added seeded diversity to batch-N catalog: `run_catalog_batch_n_pipeline` now applies predefined Photoroom seeds `[117879368, 55994449, 48672244, 65080068, 999999]` per iteration through `background.seed` in catalog v2/edit payload.
+- Updated `specs/bot_commands.md` quick reference with the new trigger and routing priority.
+
+## 2026-04-27 (dynamic edit enum hardening)
+- Dynamic edit: `DYNAMIC_EDIT_SYSTEM` lists allowed `shadow_mode` values; `lighting_mode` only `ai.auto` or `ai.preserve-hue-and-saturation`, omit when unsure; explicitly forbids `ai.studio`, `ai.environment`, `ai.natural`, `none`, etc.
+- `dynamic_edit_mapping`: `_apply_shadow_mode_filter` / `_apply_lighting_mode_filter` only add `shadow.mode` / `lighting.mode` when the LLM string is in the Python allowlist; otherwise the key is omitted (no invalid strings sent to Photoroom).
+
+## 2026-04-27 (dynamic image editing)
+- Implemented Feature-Based SDD `specs/dynamic_image_editing/`: **`/edit …`** or **`edit: …`** on a photo or image document runs `run_dynamic_image_edit_pipeline` (catalog and plain captioned photos unchanged).
+- Added `services/dynamic_edit_mapping.py` to validate Claude JSON and map snake_case fields to Photoroom v2/edit multipart keys (`background.prompt`, `shadow.mode`, `outputSize`, etc.).
+- Extended `services/anthropic_pipeline.py` with `DYNAMIC_EDIT_SYSTEM`, `parse_dynamic_edit_intent`, and mock payload parity with existing Anthropic fallback behavior.
+- Refactored `services/photoroom_edit_client.py` with shared `_post_v2_edit` plus new `dynamic_edit()`; `ai_background` now delegates to the same POST helper (402/403 still return input image bytes).
+- `services/pipeline_orchestrator.py`: new `run_dynamic_image_edit_pipeline` (optional `segment_first` cutout via existing `remove_background` before v2/edit).
+- `bot.py`: `_is_dynamic_edit_instruction` / `_extract_dynamic_edit_instruction`, wired in photo and document handlers after catalog; `/start` help text updated.
+
+## 2026-04-27
+- `bot.py`: call `load_dotenv(override=True)` immediately after importing `dotenv` so each process run picks up the latest `.env` values; keep `TELEGRAM_BOT_TOKEN` from `os.getenv`.
+- Added startup logging: token prefix (first five characters), `get_me()` username, `remove_webhook()`, and structured log lines before polling; wrapped `infinity_polling()` in try/except with `logger.exception` for clearer connection/API failures.
+
 ## 2026-04-22
 - Project initialized with Spec-Driven Development (SDD) structure, Cursor rules, and roadmap.
 - Phase 1 initialized: added `.gitignore`, created `.env` placeholders, and implemented a minimal Telegram bot (`bot.py`) with `/start` and text echo handlers using `pyTelegramBotAPI` and `python-dotenv`.

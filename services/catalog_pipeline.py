@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from services.anthropic_pipeline import (
     AnthropicPipelineError,
     parse_caption,
+    parse_catalog_request_intent,
     parse_catalog_variation_prompts,
 )
 from services.catalog_styles import get_catalog_style_by_name, select_catalog_style
@@ -12,6 +13,55 @@ from services.photoroom_edit_client import (
     render_catalog_layout,
     render_catalog_layout_with_fallback_flag,
 )
+
+CATALOG_BATCH_SEEDS = [117879368, 55994449, 48672244, 65080068, 999999]
+
+
+def route_catalog_request(user_instruction: str) -> dict[str, object]:
+    """
+    Return routed catalog intent with normalized keys:
+    {
+      "action": "catalog_single"|"catalog_batch",
+      "count": int,
+      "base_prompt": str,
+      "background_prompts": list[str],
+    }
+    """
+    routed = parse_catalog_request_intent(user_instruction)
+    action = str(routed.get("action", "catalog_single"))
+    count_raw = routed.get("count", 1)
+    base_prompt_raw = routed.get("base_prompt", user_instruction)
+    prompts_raw = routed.get("background_prompts", [])
+
+    try:
+        count = int(count_raw)
+    except (ValueError, TypeError):
+        count = 1
+    count = max(1, min(count, 5))
+    if action != "catalog_batch":
+        action = "catalog_single"
+        count = 1
+
+    base_prompt = str(base_prompt_raw or "").strip() or (user_instruction or "").strip()
+    if not base_prompt:
+        base_prompt = "Create a clean premium product catalog layout."
+
+    prompts: list[str] = []
+    if isinstance(prompts_raw, list):
+        for item in prompts_raw:
+            if isinstance(item, str) and item.strip():
+                prompts.append(item.strip())
+    if action == "catalog_batch":
+        prompts = prompts[:count]
+    else:
+        prompts = []
+
+    return {
+        "action": action,
+        "count": count,
+        "base_prompt": base_prompt,
+        "background_prompts": prompts,
+    }
 
 
 def run_catalog_pipeline(
@@ -133,3 +183,53 @@ def run_catalog_batch_pipeline(
         partial_fallback=partial,
         all_failed=False,
     )
+
+
+def run_catalog_batch_n_pipeline(
+    image_bytes: bytes,
+    filename: str,
+    user_instruction: str,
+    count: int,
+    background_prompts: list[str] | None = None,
+) -> list[bytes]:
+    """
+    Generate N catalog variations sequentially (N is clamped to 1..5).
+
+    Uses LLM-supplied diverse prompts when available; otherwise falls back to
+    per-iteration prompt generation from base instruction.
+    """
+    n = max(1, min(count, 5))
+    cutout = remove_background(image_bytes, filename=filename)
+    base_instruction = (user_instruction or "").strip() or "Create a clean premium product catalog layout."
+    style = select_catalog_style(base_instruction)
+    prompts = [p.strip() for p in (background_prompts or []) if isinstance(p, str) and p.strip()]
+    if len(prompts) < n:
+        prompts = []
+
+    images: list[bytes] = []
+    for idx in range(1, n + 1):
+        seed = CATALOG_BATCH_SEEDS[idx - 1]
+        if prompts:
+            background_prompt = prompts[idx - 1]
+        else:
+            loop_instruction = f"{base_instruction} Variation {idx}"
+            try:
+                background_prompt, _ = parse_caption(loop_instruction)
+            except AnthropicPipelineError:
+                background_prompt = style.default_background_prompt
+
+        try:
+            out, _ = render_catalog_layout_with_fallback_flag(
+                cutout,
+                style,
+                filename="catalog_cutout.png",
+                background_prompt=background_prompt,
+                background_seed=seed,
+                include_output_size=False,
+            )
+            images.append(out)
+        except PhotoroomError:
+            # Keep the sequence flowing even if one iteration fails.
+            images.append(cutout)
+
+    return images

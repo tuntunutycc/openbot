@@ -1,0 +1,367 @@
+2026-04-27 10:54:33 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 10:54:33 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 10:55:57 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 10:55:57 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 11:08:02 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 11:08:02 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 11:13:20 | INFO     | __main__:399 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 11:13:21 | INFO     | __main__:405 - Webhook removed; starting infinity polling
+2026-04-27 11:13:58 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 11:13:58 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 11:14:31 | INFO     | __main__:399 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 11:14:31 | INFO     | __main__:405 - Webhook removed; starting infinity polling
+2026-04-27 11:15:15 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 11:15:26 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 11:28:00 | ERROR    | TeleBot:1128 - Infinity polling exception: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+2026-04-27 11:28:00 | ERROR    | TeleBot:1130 - Exception traceback:
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connection.py", line 571, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 1395, in getresponse
+    response.begin()
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 325, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 286, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/socket.py", line 706, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/ssl.py", line 1314, in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/ssl.py", line 1166, in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/adapters.py", line 645, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/util/retry.py", line 490, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/util/util.py", line 39, in reraise
+    raise value
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 536, in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 367, in _raise_timeout
+    raise ReadTimeoutError(
+urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1123, in infinity_polling
+    self.polling(non_stop=True, timeout=timeout, long_polling_timeout=long_polling_timeout,
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1211, in polling
+    self.__threaded_polling(non_stop=non_stop, interval=interval, timeout=timeout, long_polling_timeout=long_polling_timeout,
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1286, in __threaded_polling
+    raise e
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1247, in __threaded_polling
+    polling_thread.raise_exceptions()
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/util.py", line 116, in raise_exceptions
+    raise self.exception_info
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/util.py", line 98, in run
+    task(*args, **kwargs)
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 689, in __retrieve_updates
+    updates = self.get_updates(offset=(self.last_update_id + 1),
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 661, in get_updates
+    json_updates = apihelper.get_updates(
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/apihelper.py", line 339, in get_updates
+    return _make_request(token, method_url, params=payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/apihelper.py", line 162, in _make_request
+    result = _get_req_session().request(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/sessions.py", line 592, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/sessions.py", line 706, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/adapters.py", line 691, in send
+    raise ReadTimeout(e, request=request)
+requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+
+2026-04-27 11:32:33 | INFO     | __main__:399 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 11:32:34 | INFO     | __main__:405 - Webhook removed; starting infinity polling
+2026-04-27 11:37:36 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 11:37:36 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 12:15:00 | INFO     | __main__:479 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 12:15:01 | INFO     | __main__:485 - Webhook removed; starting infinity polling
+2026-04-27 12:15:29 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:16:36 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:17:15 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:17:26 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:18:20 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:20:04 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:22:09 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 12:22:09 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 12:22:10 | INFO     | __main__:479 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 12:22:11 | INFO     | __main__:485 - Webhook removed; starting infinity polling
+2026-04-27 12:22:34 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:24:18 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 12:24:18 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 12:24:58 | INFO     | __main__:479 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 12:24:59 | INFO     | __main__:485 - Webhook removed; starting infinity polling
+2026-04-27 12:25:20 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:29:01 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 12:29:01 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 12:29:06 | INFO     | __main__:479 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 12:29:07 | INFO     | __main__:485 - Webhook removed; starting infinity polling
+2026-04-27 12:29:41 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 12:30:15 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:06:20 | ERROR    | TeleBot:1128 - Infinity polling exception: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+2026-04-27 13:06:20 | ERROR    | TeleBot:1130 - Exception traceback:
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connection.py", line 571, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 1395, in getresponse
+    response.begin()
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 325, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 286, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/socket.py", line 706, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/ssl.py", line 1314, in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/ssl.py", line 1166, in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/adapters.py", line 645, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/util/retry.py", line 490, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/util/util.py", line 39, in reraise
+    raise value
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 536, in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 367, in _raise_timeout
+    raise ReadTimeoutError(
+urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1123, in infinity_polling
+    self.polling(non_stop=True, timeout=timeout, long_polling_timeout=long_polling_timeout,
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1211, in polling
+    self.__threaded_polling(non_stop=non_stop, interval=interval, timeout=timeout, long_polling_timeout=long_polling_timeout,
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1286, in __threaded_polling
+    raise e
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1247, in __threaded_polling
+    polling_thread.raise_exceptions()
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/util.py", line 116, in raise_exceptions
+    raise self.exception_info
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/util.py", line 98, in run
+    task(*args, **kwargs)
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 689, in __retrieve_updates
+    updates = self.get_updates(offset=(self.last_update_id + 1),
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 661, in get_updates
+    json_updates = apihelper.get_updates(
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/apihelper.py", line 339, in get_updates
+    return _make_request(token, method_url, params=payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/apihelper.py", line 162, in _make_request
+    result = _get_req_session().request(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/sessions.py", line 592, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/sessions.py", line 706, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/adapters.py", line 691, in send
+    raise ReadTimeout(e, request=request)
+requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+
+2026-04-27 13:31:49 | ERROR    | TeleBot:1128 - Infinity polling exception: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+2026-04-27 13:31:49 | ERROR    | TeleBot:1130 - Exception traceback:
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connection.py", line 571, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 1395, in getresponse
+    response.begin()
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 325, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/http/client.py", line 286, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/socket.py", line 706, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/ssl.py", line 1314, in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/.pyenv/versions/3.11.9/lib/python3.11/ssl.py", line 1166, in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/adapters.py", line 645, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/util/retry.py", line 490, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/util/util.py", line 39, in reraise
+    raise value
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 536, in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py", line 367, in _raise_timeout
+    raise ReadTimeoutError(
+urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1123, in infinity_polling
+    self.polling(non_stop=True, timeout=timeout, long_polling_timeout=long_polling_timeout,
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1211, in polling
+    self.__threaded_polling(non_stop=non_stop, interval=interval, timeout=timeout, long_polling_timeout=long_polling_timeout,
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1286, in __threaded_polling
+    raise e
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 1247, in __threaded_polling
+    polling_thread.raise_exceptions()
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/util.py", line 116, in raise_exceptions
+    raise self.exception_info
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/util.py", line 98, in run
+    task(*args, **kwargs)
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 689, in __retrieve_updates
+    updates = self.get_updates(offset=(self.last_update_id + 1),
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/__init__.py", line 661, in get_updates
+    json_updates = apihelper.get_updates(
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/apihelper.py", line 339, in get_updates
+    return _make_request(token, method_url, params=payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/telebot/apihelper.py", line 162, in _make_request
+    result = _get_req_session().request(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/sessions.py", line 592, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/sessions.py", line 706, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ttw/Documents/My_Project/openbot/.venv/lib/python3.11/site-packages/requests/adapters.py", line 691, in send
+    raise ReadTimeout(e, request=request)
+requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='api.telegram.org', port=443): Read timed out. (read timeout=25)
+
+2026-04-27 13:36:23 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:49:24 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:50:01 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:51:13 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:51:23 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:55:54 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 13:55:54 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 13:56:51 | INFO     | __main__:550 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 13:56:51 | INFO     | __main__:556 - Webhook removed; starting infinity polling
+2026-04-27 13:57:03 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:57:13 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:57:22 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:59:09 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:59:20 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 13:59:30 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:02:35 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 14:02:35 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 14:02:37 | INFO     | __main__:550 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 14:02:38 | INFO     | __main__:556 - Webhook removed; starting infinity polling
+2026-04-27 14:03:33 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:03:43 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:03:52 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:05:52 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:06:01 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:09:24 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 14:09:24 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 14:09:25 | INFO     | __main__:604 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 14:09:26 | INFO     | __main__:610 - Webhook removed; starting infinity polling
+2026-04-27 14:09:48 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:09:55 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:10:04 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:10:16 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:10:24 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:10:31 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:11:18 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:11:26 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:11:37 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:11:48 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:16:44 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 14:16:44 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 14:16:46 | INFO     | __main__:630 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 14:16:47 | INFO     | __main__:636 - Webhook removed; starting infinity polling
+2026-04-27 14:17:14 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:18:11 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:20:29 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 14:20:29 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 14:26:23 | INFO     | __main__:630 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 14:26:23 | INFO     | __main__:636 - Webhook removed; starting infinity polling
+2026-04-27 14:26:50 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:29:24 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 14:29:24 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 14:30:51 | INFO     | __main__:630 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 14:30:51 | INFO     | __main__:636 - Webhook removed; starting infinity polling
+2026-04-27 14:31:16 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:33:33 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 14:33:33 | ERROR    | TeleBot:1136 - Break infinity polling
+2026-04-27 14:35:54 | INFO     | __main__:630 - Loaded .env with override=True; verifying Telegram session
+2026-04-27 14:35:55 | INFO     | __main__:636 - Webhook removed; starting infinity polling
+2026-04-27 14:36:20 | INFO     | httpx:1025 - HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-27 14:38:49 | ERROR    | TeleBot:1134 - Infinity polling: polling exited
+2026-04-27 14:38:49 | ERROR    | TeleBot:1136 - Break infinity polling

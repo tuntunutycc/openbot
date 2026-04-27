@@ -16,29 +16,23 @@ DEFAULT_TIMEOUT_SECONDS = 180
 PLACEHOLDER_KEYS = frozenset({"", "your_photoroom_key_here"})
 
 
-def ai_background(
-    cutout_bytes: bytes,
-    background_prompt: str,
+def _post_v2_edit(
+    image_bytes: bytes,
+    filename: str,
+    form_data: dict[str, str],
     *,
-    filename: str = "cutout.png",
     api_key: str | None = None,
     edit_url: str | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     model_version_header: str | None = None,
+    quota_fallback_bytes: bytes,
 ) -> bytes:
     """
-    Photoroom Image Editing API: AI background via POST v2/edit.
+    Shared POST handler for Photoroom v2/edit (multipart imageFile + string fields).
 
-    On HTTP 402 or 403 (quota/billing/forbidden plan), logs a warning and returns
-    the cutout bytes unchanged so the rest of the pipeline can still be tested.
+    quota_fallback_bytes: returned on HTTP 402/403 so callers can recover the last
+    good image (e.g. original upload or segment cutout).
     """
-    if not cutout_bytes:
-        raise PhotoroomError("Empty cutout image data.")
-
-    prompt = (background_prompt or "").strip()
-    if not prompt:
-        raise PhotoroomError("Background prompt is empty.")
-
     key = api_key if api_key is not None else os.getenv("PHOTOROOM_API_KEY", "")
     if not key or key in PLACEHOLDER_KEYS:
         raise PhotoroomError("Photoroom API key is not configured in the environment.")
@@ -49,18 +43,14 @@ def ai_background(
     if mv:
         headers["pr-ai-background-model-version"] = mv
 
-    files = {"imageFile": (filename, cutout_bytes)}
-    data = {
-        "referenceBox": "originalImage",
-        "background.prompt": prompt,
-    }
+    files = {"imageFile": (filename, image_bytes)}
 
     try:
         response = requests.post(
             url,
             headers=headers,
             files=files,
-            data=data,
+            data=form_data,
             timeout=timeout_seconds,
         )
     except requests.exceptions.Timeout as exc:
@@ -70,7 +60,7 @@ def ai_background(
 
     if response.status_code in (402, 403):
         logger.warning("Photoroom API Quota exceeded, using fallback image.")
-        return cutout_bytes
+        return quota_fallback_bytes
 
     if not response.ok:
         detail = _parse_error_payload(response.text) or response.text[:300]
@@ -95,6 +85,77 @@ def ai_background(
             raise PhotoroomError("Invalid base64 image data from Photoroom.") from exc
 
     return response.content
+
+
+def dynamic_edit(
+    image_bytes: bytes,
+    filename: str,
+    form_data: dict[str, str],
+    *,
+    api_key: str | None = None,
+    edit_url: str | None = None,
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    model_version_header: str | None = None,
+) -> bytes:
+    """
+    Photoroom v2/edit with caller-supplied multipart fields (dynamic /edit pipeline).
+
+    form_data keys must already match Photoroom's dotted names (e.g. background.prompt).
+    On quota/billing responses, returns image_bytes unchanged (same as ai_background).
+    """
+    if not image_bytes:
+        raise PhotoroomError("Empty image data.")
+    if not form_data:
+        raise PhotoroomError("Edit parameters are empty.")
+    return _post_v2_edit(
+        image_bytes,
+        filename,
+        form_data,
+        api_key=api_key,
+        edit_url=edit_url,
+        timeout_seconds=timeout_seconds,
+        model_version_header=model_version_header,
+        quota_fallback_bytes=image_bytes,
+    )
+
+
+def ai_background(
+    cutout_bytes: bytes,
+    background_prompt: str,
+    *,
+    filename: str = "cutout.png",
+    api_key: str | None = None,
+    edit_url: str | None = None,
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    model_version_header: str | None = None,
+) -> bytes:
+    """
+    Photoroom Image Editing API: AI background via POST v2/edit.
+
+    On HTTP 402 or 403 (quota/billing/forbidden plan), logs a warning and returns
+    the cutout bytes unchanged so the rest of the pipeline can still be tested.
+    """
+    if not cutout_bytes:
+        raise PhotoroomError("Empty cutout image data.")
+
+    prompt = (background_prompt or "").strip()
+    if not prompt:
+        raise PhotoroomError("Background prompt is empty.")
+
+    data = {
+        "referenceBox": "originalImage",
+        "background.prompt": prompt,
+    }
+    return _post_v2_edit(
+        cutout_bytes,
+        filename,
+        data,
+        api_key=api_key,
+        edit_url=edit_url,
+        timeout_seconds=timeout_seconds,
+        model_version_header=model_version_header,
+        quota_fallback_bytes=cutout_bytes,
+    )
 
 
 def render_catalog_layout(
@@ -139,8 +200,11 @@ def render_catalog_layout(
     }
 
     prompt = (background_prompt or "").strip()
-    if style.use_ai_background:
-        data["background.prompt"] = prompt or style.default_background_prompt
+    # Prompt always wins; never send background.color together with background.prompt.
+    if prompt:
+        data["background.prompt"] = prompt
+    elif style.use_ai_background:
+        data["background.prompt"] = style.default_background_prompt
     else:
         data["background.color"] = style.background_color
 
@@ -192,6 +256,8 @@ def render_catalog_layout_with_fallback_flag(
     *,
     filename: str = "cutout.png",
     background_prompt: str | None = None,
+    background_seed: int | None = None,
+    include_output_size: bool = True,
     api_key: str | None = None,
     edit_url: str | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
@@ -220,13 +286,24 @@ def render_catalog_layout_with_fallback_flag(
         "margin": style.margin,
         "shadow.mode": style.shadow_mode,
         "lighting.mode": style.lighting_mode,
-        "outputSize": style.output_size,
         "scaling": style.scaling,
     }
+    # Keep baseline blending enabled for catalog composition payloads.
+    data.setdefault("lighting.mode", "ai.auto")
+    data.setdefault("shadow.mode", "ai.soft")
+    if include_output_size:
+        data["outputSize"] = style.output_size
 
     prompt = (background_prompt or "").strip()
-    if style.use_ai_background:
-        data["background.prompt"] = prompt or style.default_background_prompt
+    # Prompt always wins; never send background.color together with background.prompt.
+    if prompt:
+        data["background.prompt"] = prompt
+        if background_seed is not None:
+            data["background.seed"] = str(background_seed)
+    elif style.use_ai_background:
+        data["background.prompt"] = style.default_background_prompt
+        if background_seed is not None:
+            data["background.seed"] = str(background_seed)
     else:
         data["background.color"] = style.background_color
 

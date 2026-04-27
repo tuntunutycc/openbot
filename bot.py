@@ -3,18 +3,23 @@ import logging
 import os
 from pathlib import PurePosixPath
 
-import telebot
 from dotenv import load_dotenv
 
+load_dotenv(override=True)
+
+import telebot
+
 from services.anthropic_pipeline import AnthropicPipelineError
-from services.catalog_pipeline import run_catalog_batch_pipeline, run_catalog_pipeline
+from services.catalog_pipeline import (
+    route_catalog_request,
+    run_catalog_batch_n_pipeline,
+    run_catalog_batch_pipeline,
+)
 from services.openclaw_agent import run_openclaw_agent
 from services.openclaw_runtime import init_openclaw
 from services.photoroom_client import PhotoroomError, remove_background
-from services.pipeline_orchestrator import run_ad_pipeline
+from services.pipeline_orchestrator import run_ad_pipeline, run_dynamic_image_edit_pipeline
 
-
-load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
@@ -51,6 +56,45 @@ def _download_telegram_file(file_id: str) -> tuple[bytes, str]:
 def _is_catalog_instruction(text: str) -> bool:
     t = (text or "").strip().lower()
     return t.startswith("/catalog") or t.startswith("catalog:")
+
+
+def _parse_catalog_batch_instruction(text: str) -> tuple[int, str] | None:
+    """
+    Parse `catalog batch N: prompt` and clamp N to 1..5.
+    Returns (count, prompt) or None when not a batch trigger.
+    """
+    raw = (text or "").strip()
+    low = raw.lower()
+    if not low.startswith("catalog batch "):
+        return None
+    rest = raw[len("catalog batch ") :].strip()
+    if ":" not in rest:
+        return None
+    num_part, prompt_part = rest.split(":", 1)
+    try:
+        count = int(num_part.strip())
+    except ValueError:
+        return None
+    count = max(1, min(count, 5))
+    prompt = prompt_part.strip() or "Create a clean premium product catalog layout."
+    return count, prompt
+
+
+def _is_dynamic_edit_instruction(text: str) -> bool:
+    """Caption routes to specs/dynamic_image_editing (Claude → v2/edit params), not the ad pipeline."""
+    t = (text or "").strip().lower()
+    return t.startswith("/edit") or t.startswith("edit:")
+
+
+def _extract_dynamic_edit_instruction(caption: str) -> str:
+    """Strip /edit or edit: prefix; caller ensures caption matches _is_dynamic_edit_instruction."""
+    c = (caption or "").strip()
+    low = c.lower()
+    if low.startswith("/edit"):
+        return c[5:].strip()
+    if low.startswith("edit:"):
+        return c.split(":", 1)[1].strip()
+    return ""
 
 
 def _reply_image_with_optional_text(
@@ -190,6 +234,8 @@ def handle_start(message: telebot.types.Message) -> None:
             "Send a product photo (or image file) without a caption to remove background only.\n"
             "Send a photo with a caption (e.g. beach ad background) to run the full AI ad pipeline.\n"
             "Use caption prefix '/catalog' or 'catalog:' for catalog layout generation.\n"
+            "Use 'catalog batch N: ...' (max N=5) to generate N catalog variations sequentially.\n"
+            "Use '/edit …' or 'edit: …' on a photo for dynamic Photoroom edits (Claude maps your text to API parameters).\n"
             "Use /agent <message> or prefix with 'agent:' to route through OpenClaw.\n"
             f"OpenClaw status: {openclaw_status}"
         ),
@@ -210,7 +256,8 @@ def handle_agent_command(message: telebot.types.Message) -> None:
 
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message: telebot.types.Message) -> None:
-    # Caption present → full pipeline (segment + Claude + v2/edit). No caption → Phase 3 cut-out only.
+    # Caption routing order: catalog → /edit|edit: (dynamic v2/edit) → default ad pipeline.
+    # No caption → Phase 3 background removal only.
     photos = message.photo
     if not photos:
         bot.reply_to(message, "No photo found in this message.")
@@ -232,6 +279,30 @@ def handle_photo(message: telebot.types.Message) -> None:
         return
 
     caption = (message.caption or "").strip()
+    parsed_batch = _parse_catalog_batch_instruction(caption)
+    if parsed_batch:
+        batch_count, batch_instruction = parsed_batch
+        try:
+            images = run_catalog_batch_n_pipeline(data, name, batch_instruction, batch_count)
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while generating the catalog batch. Please try again.",
+            )
+            return
+        for idx, image in enumerate(images, start=1):
+            caption_text = f"Variation {idx}"
+            _reply_image_with_optional_text(
+                message,
+                image,
+                caption_text,
+                output_name=f"catalog_batch_{idx}.png",
+            )
+        return
+
     if caption and _is_catalog_instruction(caption):
         catalog_instruction = caption
         if caption.startswith("/catalog"):
@@ -240,6 +311,44 @@ def handle_photo(message: telebot.types.Message) -> None:
             catalog_instruction = caption.split(":", 1)[1].strip()
         if not catalog_instruction:
             catalog_instruction = "Create a clean premium product catalog layout."
+
+        routed = route_catalog_request(catalog_instruction)
+        if routed["action"] == "catalog_batch":
+            batch_count = int(routed["count"])
+            batch_instruction = str(routed["base_prompt"])
+            batch_prompts = [str(x) for x in routed.get("background_prompts", [])] if isinstance(routed.get("background_prompts"), list) else []
+            try:
+                images = run_catalog_batch_n_pipeline(
+                    data,
+                    name,
+                    batch_instruction,
+                    batch_count,
+                    background_prompts=batch_prompts,
+                )
+            except PhotoroomError as exc:
+                bot.reply_to(message, str(exc))
+                return
+            except Exception:
+                bot.reply_to(
+                    message,
+                    "Something went wrong while generating the catalog batch. Please try again.",
+                )
+                return
+            for idx, image in enumerate(images, start=1):
+                prompt_label = ""
+                if idx - 1 < len(batch_prompts):
+                    prompt_label = batch_prompts[idx - 1]
+                caption_text = f"Variation {idx}"
+                if prompt_label:
+                    caption_text = f"{caption_text}: {prompt_label}"
+                _reply_image_with_optional_text(
+                    message,
+                    image,
+                    caption_text,
+                    output_name=f"catalog_batch_{idx}.png",
+                )
+            return
+
         try:
             batch = run_catalog_batch_pipeline(data, name, catalog_instruction)
         except PhotoroomError as exc:
@@ -257,6 +366,37 @@ def handle_photo(message: telebot.types.Message) -> None:
             batch.marketing_copy,
             full_fallback=batch.full_fallback,
             partial_fallback=batch.partial_fallback,
+        )
+        return
+
+    # Dynamic image editing: caption must use /edit or edit: so the legacy ad pipeline keeps plain captions.
+    if caption and _is_dynamic_edit_instruction(caption):
+        instruction = _extract_dynamic_edit_instruction(caption)
+        if not instruction:
+            bot.reply_to(
+                message,
+                "Usage: add an instruction after /edit or edit: (e.g. edit: put this on a wooden table).",
+            )
+            return
+        try:
+            final_bytes, user_msg = run_dynamic_image_edit_pipeline(data, name, instruction)
+        except AnthropicPipelineError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while running the dynamic edit. Please try again.",
+            )
+            return
+        _reply_image_with_optional_text(
+            message,
+            final_bytes,
+            user_msg,
+            output_name="dynamic_edit.png",
         )
         return
 
@@ -308,6 +448,30 @@ def handle_image_document(message: telebot.types.Message) -> None:
         return
 
     caption = (message.caption or "").strip()
+    parsed_batch = _parse_catalog_batch_instruction(caption)
+    if parsed_batch:
+        batch_count, batch_instruction = parsed_batch
+        try:
+            images = run_catalog_batch_n_pipeline(data, filename, batch_instruction, batch_count)
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while generating the catalog batch. Please try again.",
+            )
+            return
+        for idx, image in enumerate(images, start=1):
+            caption_text = f"Variation {idx}"
+            _reply_image_with_optional_text(
+                message,
+                image,
+                caption_text,
+                output_name=f"catalog_batch_{idx}.png",
+            )
+        return
+
     if caption and _is_catalog_instruction(caption):
         catalog_instruction = caption
         if caption.startswith("/catalog"):
@@ -316,6 +480,44 @@ def handle_image_document(message: telebot.types.Message) -> None:
             catalog_instruction = caption.split(":", 1)[1].strip()
         if not catalog_instruction:
             catalog_instruction = "Create a clean premium product catalog layout."
+
+        routed = route_catalog_request(catalog_instruction)
+        if routed["action"] == "catalog_batch":
+            batch_count = int(routed["count"])
+            batch_instruction = str(routed["base_prompt"])
+            batch_prompts = [str(x) for x in routed.get("background_prompts", [])] if isinstance(routed.get("background_prompts"), list) else []
+            try:
+                images = run_catalog_batch_n_pipeline(
+                    data,
+                    filename,
+                    batch_instruction,
+                    batch_count,
+                    background_prompts=batch_prompts,
+                )
+            except PhotoroomError as exc:
+                bot.reply_to(message, str(exc))
+                return
+            except Exception:
+                bot.reply_to(
+                    message,
+                    "Something went wrong while generating the catalog batch. Please try again.",
+                )
+                return
+            for idx, image in enumerate(images, start=1):
+                prompt_label = ""
+                if idx - 1 < len(batch_prompts):
+                    prompt_label = batch_prompts[idx - 1]
+                caption_text = f"Variation {idx}"
+                if prompt_label:
+                    caption_text = f"{caption_text}: {prompt_label}"
+                _reply_image_with_optional_text(
+                    message,
+                    image,
+                    caption_text,
+                    output_name=f"catalog_batch_{idx}.png",
+                )
+            return
+
         try:
             batch = run_catalog_batch_pipeline(data, filename, catalog_instruction)
         except PhotoroomError as exc:
@@ -333,6 +535,36 @@ def handle_image_document(message: telebot.types.Message) -> None:
             batch.marketing_copy,
             full_fallback=batch.full_fallback,
             partial_fallback=batch.partial_fallback,
+        )
+        return
+
+    if caption and _is_dynamic_edit_instruction(caption):
+        instruction = _extract_dynamic_edit_instruction(caption)
+        if not instruction:
+            bot.reply_to(
+                message,
+                "Usage: add an instruction after /edit or edit: (e.g. edit: put this on a wooden table).",
+            )
+            return
+        try:
+            final_bytes, user_msg = run_dynamic_image_edit_pipeline(data, filename, instruction)
+        except AnthropicPipelineError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except PhotoroomError as exc:
+            bot.reply_to(message, str(exc))
+            return
+        except Exception:
+            bot.reply_to(
+                message,
+                "Something went wrong while running the dynamic edit. Please try again.",
+            )
+            return
+        _reply_image_with_optional_text(
+            message,
+            final_bytes,
+            user_msg,
+            output_name="dynamic_edit.png",
         )
         return
 
@@ -387,4 +619,30 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(levelname)s %(name)s: %(message)s",
     )
-    bot.infinity_polling()
+    log = logging.getLogger(__name__)
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token or token == "your_token_here":
+        log.error("TELEGRAM_BOT_TOKEN is missing or still set to placeholder in .env.")
+        raise SystemExit(1)
+
+    print(f"Token Prefix: {token[:5]}...")
+    log.info("Loaded .env with override=True; verifying Telegram session")
+
+    try:
+        me = bot.get_me()
+        print(f"Bot Active: @{me.username}")
+        bot.remove_webhook()
+        log.info("Webhook removed; starting infinity polling")
+    except Exception as exc:
+        log.exception(
+            "Startup check failed (token, network, or Telegram API): %s",
+            exc,
+        )
+        raise SystemExit(1) from exc
+
+    try:
+        bot.infinity_polling()
+    except Exception as exc:
+        log.exception("Telegram polling stopped due to connection/API error: %s", exc)
+        raise
