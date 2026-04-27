@@ -14,3 +14,6 @@ Integration of Anthropic API for text generation and prompt parsing.
 
 ## Phase 5
 Final pipeline assembly and local testing.
+
+## Quick Reference
+- Bot command and trigger guide: `specs/bot_commands.md`
