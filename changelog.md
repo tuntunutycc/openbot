@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-29 (spec-roadmap-changelog sync)
+- Performed a three-way sync between `specs/`, `roadmap.md`, and `changelog.md`.
+- Updated `specs/roadmap.md` and added root `roadmap.md` so feature milestones now mirror `specs/<feature_name>/` folder names exactly.
+- Aligned roadmap statuses with changelog implementation history: `openclaw_init`, `photoroom_api`, `ai_pipeline`, `catalog_generation`, `batch_variations`, `custom_prompts`, and `dynamic_image_editing` are marked Done.
+- No spec folder rename was applied because no unambiguous folder-name conflict was found; legacy phase-style labels are preserved in changelog entries for traceability.
+
 ## 2026-04-27 (catalog intent router + seeded batch diversity)
 - Added catalog intent routing in `services/anthropic_pipeline.py` (`parse_catalog_request_intent`) with JSON output (`action`, `count`, `base_prompt`) to detect natural-language batch requests in Burmese/English and clamp count to max 5.
 - Added `route_catalog_request` in `services/catalog_pipeline.py`; `/catalog ...` and `catalog: ...` now auto-switch to batch mode when routed action is `catalog_batch`.
